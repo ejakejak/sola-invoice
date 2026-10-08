@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sola Konveksi — Invoice Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #000000;
+    --text-secondary: #333333;
+    --text-muted: #555555;
+    --rule: #000000;
+    --accent-blue: #034E9E;
+    --accent-yellow: #F9D024;
+    --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --page-width: 210mm;
+    --page-height: 297mm;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--text);
+    background: #eaeaea;
+    padding: 24px;
+  }
+
+  /* Editor / form area */
+  .editor {
+    max-width: 960px;
+    margin: 0 auto 32px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  .editor h2 {
+    font-family: var(--font-serif);
+    font-size: 22pt;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .editor .subtitle {
+    font-size: 10pt;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 720px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.full { grid-column: span 2; }
+  label { font-size: 9pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+  input, textarea, select {
+    font-family: var(--font-sans);
+    font-size: 10pt;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: var(--text);
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent-blue); outline: none; }
+
+  .line-items-editor {
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    padding: 12px 0;
+    margin: 8px 0;
+  }
+  .line-item-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 80px 120px 120px 32px;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px dashed #eee;
+  }
+  .line-item-row:last-child { border-bottom: none; }
+  .line-item-row input { font-size: 9pt; padding: 6px 8px; }
+  .line-item-row .qty, .line-item-row .price { text-align: right; }
+
+  .totals-row {
+    display: flex; justify-content: flex-end; gap: 24px; padding: 8px 0;
+    font-size: 10pt;
+  }
+  .totals-row .label { color: var(--text-secondary); }
+  .totals-row .value { min-width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
+  .totals-row .grand { font-weight: 700; font-size: 11pt; }
+
+  .actions {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px;
+  }
+  button {
+    font-family: var(--font-sans);
+    font-size: 10pt;
+    padding: 10px 18px;
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button.primary {
+    background: #000; color: #fff; border-color: #000;
+  }
+  button:hover { opacity: 0.92; }
+
+  .accent-toggle {
+    display: flex; align-items: center; gap: 8px; font-size: 9pt; color: var(--text-secondary);
+  }
+
+  /* Print / preview area */
+  .preview-area {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+  }
+  .a4-page {
+    width: 210mm;
+    min-height: 297mm;
+    background: var(--bg);
+    padding: 15mm;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+    position: relative;
+  }
+
+  /* Header */
+  .invoice-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 4mm;
+  }
+  .brand-left h1 {
+    font-family: var(--font-serif);
+    font-size: 18pt;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin-bottom: 2mm;
+  }
+  .brand-left .address, .brand-left .contact {
+    font-size: 9pt; color: var(--text-secondary); line-height: 1.35;
+  }
+  .meta-right {
+    text-align: right; font-size: 9pt; min-width: 100mm;
+  }
+  .meta-right .meta-row { margin-bottom: 1mm; }
+  .meta-right .meta-label {
+    font-size: 7pt; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); font-weight: 600;
+  }
+  .meta-right .meta-value { font-size: 9pt; color: var(--text); }
+
+  /* Rules */
+  hr.rule {
+    border: none; border-top: 0.5pt solid var(--rule); margin: 4mm 0;
+  }
+
+  /* Brand accent deviation */
+  .a4-page.accent-mode .brand-top-bar {
+    height: 2pt; background: var(--accent-blue); width: 100%; margin-bottom: 4mm; border-radius: 1pt;
+  }
+  .a4-page.accent-mode .label-underline {
+    border-bottom: 1pt solid var(--accent-yellow); display: inline-block; padding-bottom: 2px;
+  }
+
+  /* Bill to */
+  .bill-to-block { margin-top: 2mm; }
+  .bill-to-block h2 {
+    font-size: 7pt; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--text);
+    border-bottom: 0.5pt solid var(--rule); padding-bottom: 1mm; margin-bottom: 3mm;
+  }
+  .bill-to-block p { font-size: 9pt; line-height: 1.35; }
+  .bill-to-block .bold { font-weight: 600; }
+
+  /* Line items table */
+  .line-table {
+    width: 100%; border-collapse: collapse; font-size: 9pt;
+  }
+  .line-table thead th {
+    text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+    border-bottom: 0.5pt solid var(--rule); padding: 3px 4px; color: var(--text);
+  }
+  .line-table tbody td { padding: 3px 4px; border-bottom: 0.25pt solid #ddd; vertical-align: top; }
+  .line-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .line-table tbody tr:last-child td { border-bottom: 0.5pt solid var(--rule); }
+
+  /* Totals */
+  .totals-block {
+    display: flex; flex-direction: column; align-items: flex-end; margin-top: 4mm;
+  }
+  .totals-block .total-row {
+    display: flex; justify-content: flex-end; gap: 24mm;
+    width: 90mm;
+    font-size: 10pt; padding: 2mm 0;
+  }
+  .totals-block .total-row .label { color: var(--text-secondary); }
+  .totals-block .total-row .value { text-align: right; min-width: 55mm; font-variant-numeric: tabular-nums; }
+  .totals-block .grand-row { font-weight: 700; font-size: 11pt; border-top: 0.5pt solid var(--rule); padding-top: 2mm; }
+  .totals-block .grand-row .label { color: var(--text); font-weight: 700; }
+
+  /* Payment */
+  .payment-block { margin-top: 6mm; }
+  .payment-block h3 {
+    font-size: 7pt; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+    border-bottom: 0.5pt solid var(--rule); padding-bottom: 1mm; margin-bottom: 3mm; color: var(--text);
+  }
+  .payment-block p { font-size: 9pt; line-height: 1.35; color: var(--text-secondary); }
+  .payment-block .account-line { font-weight: 500; color: var(--text); }
+
+  /* Footer */
+  .invoice-footer {
+    margin-top: 8mm; text-align: center; font-size: 8pt; color: var(--text-muted); font-style: italic;
+  }
+
+  /* Print styles */
+  @media print {
+    body { background: #fff; padding: 0; }
+    .editor, .actions { display: none !important; }
+    .preview-area { display: block; }
+    .a4-page {
+      box-shadow: none; width: 210mm; min-height: 297mm; padding: 15mm;
+      margin: 0; page-break-after: avoid; page-break-inside: avoid;
+    }
+    @page { margin: 0; }
+  }
+
+  /* Small utilities */
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+  <!-- Editor -->
+  <section class="editor" aria-label="Invoice editor">
+    <h2>Sola Konveksi Yogyakarta</h2>
+    <p class="subtitle">Invoice Generator — Reference: INV-2026-0004</p>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="inv-no">Invoice Number (NO)</label>
+        <input id="inv-no" value="INV-2026-0004" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label for="inv-date">Date (TANGGAL)</label>
+        <input id="inv-date" type="date" value="2026-09-25" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label for="inv-due">Due Date (JATUH TEMPO)</label>
+        <input id="inv-due" type="date" value="2026-10-09" oninput="updatePreview()">
+      </div>
+      <div class="field full">
+        <label for="bill-name">Bill To — Name / Company</label>
+        <input id="bill-name" value="GEBIAN SADEWA, DUTA PERSADA" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label for="bill-attn">Attn</label>
+        <input id="bill-attn" value="EJAK" oninput="updatePreview()">
+      </div>
+      <div class="field full">
+        <label for="bill-addr">Address</label>
+        <textarea id="bill-addr" rows="2" oninput="updatePreview()">Jl. Ibu Ruswo 555</textarea>
+      </div>
+      <div class="field">
+        <label for="bill-phone">Phone / WA</label>
+        <input id="bill-phone" value="00" oninput="updatePreview()">
+      </div>
+      <div class="field full">
+        <label for="brand-title">Brand Title</label>
+        <input id="brand-title" value="Sola Konveksi Yogyakarta" oninput="updatePreview()">
+      </div>
+    </div>
+
+    <div class="line-items-editor" id="line-items-editor"></div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="pay-account">BCA Account No</label>
+        <input id="pay-account" value="4452337111" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label for="pay-holder">Account Holder (a.n.)</label>
+        <input id="pay-holder" value="Irhami Al Adaby" oninput="updatePreview()">
+      </div>
+      <div class="field full">
+        <label for="pay-instruction">Payment Instruction</label>
+        <textarea id="pay-instruction" rows="2" oninput="updatePreview()">Mohon transfer sesuai jumlah Sisa Tagihan di atas dan konfirmasi melalui kontak kami.</textarea>
+      </div>
+    </div>
+
+    <div class="totals-row" style="margin-top: 8px;">
+      <div class="label">Subtotal</div>
+      <div class="value" id="subtotal-value">Rp 3.470.000</div>
+    </div>
+    <div class="totals-row">
+      <div class="label">Grand Total</div>
+      <div class="value grand" id="grand-value">Rp 3.470.000</div>
+    </div>
+    <div class="totals-row">
+      <div class="label">Jumlah Dibayar (Paid)</div>
+      <div class="value" id="paid-value">Rp 0</div>
+    </div>
+    <div class="totals-row">
+      <div class="label">Sisa Tagihan (Outstanding)</div>
+      <div class="value" id="outstanding-value">Rp 3.470.000</div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" onclick="window.print()">Print / Save PDF</button>
+      <button onclick="addLineItem()">+ Add Line Item</button>
+      <button onclick="resetDefaults()">Reset to Reference</button>
+      <label class="accent-toggle" style="margin-left: auto;">
+        <input type="checkbox" id="accent-toggle" onchange="toggleAccent(this.checked)">
+        Brand Accent (#034E9E / #F9D024)
+      </label>
+    </div>
+  </section>
+
+  <!-- Preview -->
+  <section class="preview-area" aria-label="Invoice preview">
+    <div class="a4-page" id="preview-page">
+      <div class="brand-top-bar" style="display:none;"></div>
+      <header class="invoice-header">
+        <div class="brand-left">
+          <h1 id="p-brand">Sola Konveksi Yogyakarta</h1>
+          <div class="address" id="p-addr">Jl. Magelang No.KM 7, Mlati Beningan, Sendangadi, Mlati, Sleman Regency<br>D.I. Yogyakarta 55285, Indonesia</div>
+          <div class="contact" id="p-contact">Telp/WA 62 823-7127-5988</div>
+        </div>
+        <aside class="meta-right" id="p-meta"></aside>
+      </header>
+      <hr class="rule">
+      <section class="bill-to-block">
+        <h2>BILL TO</h2>
+        <div id="p-bill-to"></div>
+      </section>
+      <table class="line-table" id="p-table">
+        <thead>
+          <tr><th>NO</th><th>DESKRIPSI</th><th>QTY</th><th>HARGA SATUAN</th><th>JUMLAH</th></tr>
+        </thead>
+        <tbody id="p-table-body"></tbody>
+      </table>
+      <div class="totals-block" id="p-totals"></div>
+      <hr class="rule">
+      <section class="payment-block">
+        <h3><span class="label-underline">KETERANGAN PEMBAYARAN</span></h3>
+        <p id="p-pay-account"></p>
+        <p id="p-pay-instruction"></p>
+      </section>
+      <footer class="invoice-footer">
+        <p>Terima kasih atas kepercayaan Anda.</p>
+      </footer>
+    </div>
+  </section>
+
+<script>
+  // Default company info from reference
+  const DEFAULT_COMPANY = {
+    title: 'Sola Konveksi Yogyakarta',
+    addressLine1: 'Jl. Magelang No.KM 7, Mlati Beningan, Sendangadi, Mlati, Sleman Regency',
+    addressLine2: 'D.I. Yogyakarta 55285, Indonesia',
+    contact: 'Telp/WA 62 823-7127-5988',
+    payAccount: '4452337111',
+    payHolder: 'Irhami Al Adaby',
+    payInstruction: 'Mohon transfer sesuai jumlah Sisa Tagihan di atas dan konfirmasi melalui kontak kami.'
+  };
+
+  let lineItems = [
+    { no: 1, desc: 'Polo Shirt — COTTON LACOSTE', qty: 30, price: 0 },
+    { no: 2, desc: 'Polo Shirt — COTTON LACOSTE', qty: 30, price: 85000 }
+  ];
+
+  function fmtRp(n) {
+    const parts = Math.round(n).toString().split('.').join('');
+    let result = '';
+    let count = 0;
+    for (let i = parts.length - 1; i >= 0; i--) {
+      result = parts[i] + result;
+      count++;
+      if (count % 3 === 0 && i > 0) result = '.' + result;
+    }
+    return 'Rp ' + result;
+  }
+
+  function formatDateInput(str) {
+    // Convert YYYY-MM-DD to DD/MM/YYYY for display
+    if (!str) return '';
+    const [y, m, d] = str.split('-');
+    if (!y || !m || !d) return str;
+    return `${d}/${m}/${y}`;
+  }
+
+  function buildTableBody() {
+    const tbody = document.getElementById('p-table-body');
+    tbody.innerHTML = '';
+    lineItems.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      const total = item.qty * item.price;
+      tr.innerHTML = `<td>${item.no}</td>
+        <td>${item.desc}</td>
+        <td class="num">${item.qty}</td>
+        <td class="num">${fmtRp(item.price)}</td>
+        <td class="num">${fmtRp(total)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function updatePreview() {
+    // Update company info
+    document.getElementById('p-brand').textContent = document.getElementById('brand-title').value || DEFAULT_COMPANY.title;
+    document.getElementById('p-addr').innerHTML = (document.getElementById('brand-title').value ? document.getElementById('bill-addr').value.replace(/\n/g, '<br>') : DEFAULT_COMPANY.addressLine1 + '<br>' + DEFAULT_COMPANY.addressLine2);
+    document.getElementById('p-contact').textContent = document.getElementById('bill-phone').value ? 'Telp/WA ' + document.getElementById('bill-phone').value : DEFAULT_COMPANY.contact;
+
+    // Update meta
+    const metaHtml = `
+      <div class="meta-row"><span class="meta-label">NO</span> <span class="meta-value" id="p-meta-no">${document.getElementById('inv-no').value || 'INV-2026-0004'}</span></div>
+      <div class="meta-row"><span class="meta-label">TANGGAL</span> <span class="meta-value">${formatDateInput(document.getElementById('inv-date').value || '2026-09-25')}</span></div>
+      <div class="meta-row"><span class="meta-label">JATUH TEMPO</span> <span class="meta-value">${formatDateInput(document.getElementById('inv-due').value || '2026-10-09')}</span></div>`;
+    document.getElementById('p-meta').innerHTML = metaHtml;
+
+    // Update bill-to
+    const billName = document.getElementById('bill-name').value || 'GEBIAN SADEWA, DUTA PERSADA';
+    const billAttn = document.getElementById('bill-attn').value || 'EJAK';
+    const billAddr = document.getElementById('bill-addr').value || 'Jl. Ibu Ruswo 555';
+    const billPhone = document.getElementById('bill-phone').value || '00';
+    document.getElementById('p-bill-to').innerHTML = `<p class="bold">${billName}</p>
+      <p>Attn: ${billAttn}</p>
+      <p>${billAddr.replace(/\n/g, '<br>')}</p>
+      <p>Telp: ${billPhone}</p>`;
+
+    // Line items
+    buildTableBody();
+
+    // Totals
+    const subtotal = lineItems.reduce((s, i) => s + i.qty * i.price, 0);
+    const grand = subtotal; // simple model; no tax/shipping configured
+    const paidStr = document.getElementById('paid-value').textContent || 'Rp 0'; // not editable directly; kept for reference
+    const paidNum = 0;
+    const outstanding = grand - paidNum;
+
+    document.getElementById('p-totals').innerHTML = `
+      <div class="total-row"><span class="label">Subtotal</span> <span class="value">${fmtRp(subtotal)}</span></div>
+      <div class="total-row grand-row"><span class="label">Grand Total</span> <span class="value">${fmtRp(grand)}</span></div>
+      <div class="total-row"><span class="label">Jumlah Dibayar</span> <span class="value">${fmtRp(paidNum)}</span></div>
+      <div class="total-row"><span class="label">Sisa Tagihan (Outstanding)</span> <span class="value">${fmtRp(outstanding)}</span></div>`;
+
+    document.getElementById('subtotal-value').textContent = fmtRp(subtotal);
+    document.getElementById('grand-value').textContent = fmtRp(grand);
+    document.getElementById('paid-value').textContent = fmtRp(paidNum);
+    document.getElementById('outstanding-value').textContent = fmtRp(outstanding);
+
+    // Payment info
+    const acct = document.getElementById('pay-account').value || DEFAULT_COMPANY.payAccount;
+    const holder = document.getElementById('pay-holder').value || DEFAULT_COMPANY.payHolder;
+    const instruction = document.getElementById('pay-instruction').value || DEFAULT_COMPANY.payInstruction;
+    document.getElementById('p-pay-account').innerHTML = `<span class="account-line">Pembayaran dilakukan secara transfer ke rekening: BCA ${acct} a.n. ${holder}</span>`;
+    document.getElementById('p-pay-instruction').textContent = instruction;
+  }
+
+  function addLineItem() {
+    const no = lineItems.length + 1;
+    lineItems.push({ no, desc: 'Item Description [FILL]', qty: 1, price: 0 });
+    renderLineItemEditor();
+    updatePreview();
+  }
+
+  function removeLineItem(index) {
+    lineItems.splice(index, 1);
+    // Re-number
+    lineItems.forEach((item, i) => item.no = i + 1);
+    renderLineItemEditor();
+    updatePreview();
+  }
+
+  function renderLineItemEditor() {
+    const container = document.getElementById('line-items-editor');
+    container.innerHTML = '';
+    lineItems.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.className = 'line-item-row';
+      row.innerHTML = `
+        <div class="qty" style="font-size:8pt;color:#777;">#${item.no}</div>
+        <input type="text" value="${item.desc}" placeholder="Description" oninput="lineItems[${idx}].desc=this.value; updatePreview()">
+        <input type="number" class="qty" value="${item.qty}" min="0" step="1" oninput="lineItems[${idx}].qty=parseInt(this.value)||0; updatePreview()">
+        <input type="number" class="price" value="${item.price}" min="0" step="1000" oninput="lineItems[${idx}].price=parseInt(this.value)||0; updatePreview()">
+        <div class="qty" style="font-size:9pt;">${fmtRp(item.qty * item.price)}</div>
+        <button onclick="removeLineItem(${idx})" style="font-size:8pt;padding:4px 8px;">×</button>`;
+      container.appendChild(row);
+    });
+  }
+
+  function resetDefaults() {
+    lineItems = [
+      { no: 1, desc: 'Polo Shirt — COTTON LACOSTE', qty: 30, price: 0 },
+      { no: 2, desc: 'Polo Shirt — COTTON LACOSTE', qty: 30, price: 85000 }
+    ];
+    document.getElementById('inv-no').value = 'INV-2026-0004';
+    document.getElementById('inv-date').value = '2026-09-25';
+    document.getElementById('inv-due').value = '2026-10-09';
+    document.getElementById('bill-name').value = 'GEBIAN SADEWA, DUTA PERSADA';
+    document.getElementById('bill-attn').value = 'EJAK';
+    document.getElementById('bill-addr').value = 'Jl. Ibu Ruswo 555';
+    document.getElementById('bill-phone').value = '00';
+    document.getElementById('brand-title').value = 'Sola Konveksi Yogyakarta';
+    document.getElementById('pay-account').value = '4452337111';
+    document.getElementById('pay-holder').value = 'Irhami Al Adaby';
+    document.getElementById('pay-instruction').value = 'Mohon transfer sesuai jumlah Sisa Tagihan di atas dan konfirmasi melalui kontak kami.';
+    renderLineItemEditor();
+    updatePreview();
+  }
+
+  function toggleAccent(enabled) {
+    document.getElementById('preview-page').classList.toggle('accent-mode', enabled);
+  }
+
+  // Initialize
+  renderLineItemEditor();
+  updatePreview();
+</script>
+</body>
+</html>
